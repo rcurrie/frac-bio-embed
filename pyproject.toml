@@ -1,0 +1,16 @@
+[project]
+name = "frac-bio-embed"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "tiledb>=0.31.0",
+    "obonet>=1.1.0",
+    "networkx>=3.2",
+    "pyarrow>=15.0.0",
+    "pandas>=2.2.0",
+    "numpy>=1.26.0",
+    "tqdm>=4.66.0",
+    "hnswlib>=0.8.0",
+]
