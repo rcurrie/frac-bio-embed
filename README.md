@@ -2,13 +2,25 @@
 
 Let's see if applying [Devansh's](https://www.linkedin.com/in/devansh-devansh-516004168/) next level [Fractal Embeddings](https://www.artificialintelligencemadesimple.com/p/how-fractals-can-improve-how-ai-models) pumps our our biological semantic foo!
 
+# Install
+
+Install python dependencies and create a virtual env:
+
+```
+uv venv
+source .venv/bin/activate
+uv sync
+```
+
+Create a ./data/ folder and download and unpack the scimilarity [model and dataset](https://zenodo.org/records/10685499) (~30GB) into data/models/scimilarity/model_v1.1.
+
 # SCimilarity Dataset
 
 A hot bed of foundation model effort in the biology world starts with single-cell RNA-seq data - basically a 20k vector per cell where each row is the level of a gene as a proxy for a protein. [Genentech](https://www.gene.com/) (The OG Bio Tech Company) has published [SCimilarity](https://github.com/Genentech/scimilarity), a dataset of 23 million single cells and a single cell foundation model (scFM) that generates 128-dimensional embeddings per cell. The 7.9 million cell subset they used to train their model have ground-truth [Cell Ontology](https://obophenotype.github.io/cell-ontology/) labels spanning 203 unique cell types that we can mine to generate a hierarchy for our fractal embeddings. The full dataset is published as a TileDB with all 23M embeddings, and the labeled annotation subset is stored in an hnswlib kNN index alongside a reference labels file.
 
 (Shameless plug - I've wrangled all these data plus the scFM model and an IVFPQ implementation into a 100% client side web app, [CytoVerse](https://github.com/braingeneers/cytoverse), but I digress...)
 
-## Materializing The Hierarchy
+## Ingesting and Materializing the Hierarchy
 
 The Cell Ontology (CL) is a Directed Acyclic Graph (DAG) with ~3,200 cell type terms connected by `is_a` relationships. Our 203 cell types sit at varying depths in this DAG. To create a strict 4-level tree suitable for hierarchical loss training, we:
 
@@ -28,6 +40,12 @@ The Cell Ontology (CL) is a Directed Acyclic Graph (DAG) with ~3,200 cell type t
 4. **Export** 7,913,892 embeddings from the hnswlib kNN annotation index with their 4-level hierarchy labels as a single Parquet file with dictionary-encoded categorical columns.
 
 ## Results
+
+Assuming you've setup your virtual env and downloaded the dataaset as above:
+
+```
+uv run python ingest.py
+```
 
 **Output:** `data/scimilarity_embeddings.parquet` (3.80 GB)
 
@@ -51,3 +69,7 @@ The Cell Ontology (CL) is a Directed Acyclic Graph (DAG) with ~3,200 cell type t
 | Muscle          | 396,372   | 5.0%  |
 | Endothelial     | 385,952   | 4.9%  |
 | Stem/Progenitor | 220,534   | 2.8%  |
+
+```
+
+```
