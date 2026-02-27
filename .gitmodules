@@ -1,0 +1,3 @@
+[submodule "fractal-embeddings"]
+	path = fractal-embeddings
+	url = https://github.com/dl1683/ai-moonshots.git

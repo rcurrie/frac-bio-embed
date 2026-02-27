@@ -2,25 +2,13 @@
 
 Let's see if applying [Devansh's](https://www.linkedin.com/in/devansh-devansh-516004168/) next level [Fractal Embeddings](https://www.artificialintelligencemadesimple.com/p/how-fractals-can-improve-how-ai-models) pumps our our biological semantic foo!
 
-# Install
-
-Install python dependencies and create a virtual env:
-
-```
-uv venv
-source .venv/bin/activate
-uv sync
-```
-
-Create a ./data/ folder and download and unpack the scimilarity [model and dataset](https://zenodo.org/records/10685499) (~30GB) into data/models/scimilarity/model_v1.1.
-
 # SCimilarity Dataset
 
 A hot bed of foundation model effort in the biology world starts with single-cell RNA-seq data - basically a 20k vector per cell where each row is the level of a gene as a proxy for a protein. [Genentech](https://www.gene.com/) (The OG Bio Tech Company) has published [SCimilarity](https://github.com/Genentech/scimilarity), a dataset of 23 million single cells and a single cell foundation model (scFM) that generates 128-dimensional embeddings per cell. The 7.9 million cell subset they used to train their model have ground-truth [Cell Ontology](https://obophenotype.github.io/cell-ontology/) labels spanning 203 unique cell types that we can mine to generate a hierarchy for our fractal embeddings. The full dataset is published as a TileDB with all 23M embeddings, and the labeled annotation subset is stored in an hnswlib kNN index alongside a reference labels file.
 
 (Shameless plug - I've wrangled all these data plus the scFM model and an IVFPQ implementation into a 100% client side web app, [CytoVerse](https://github.com/braingeneers/cytoverse), but I digress...)
 
-## Ingesting and Materializing the Hierarchy
+## Ingesting and Materializing a Hierarchy
 
 The Cell Ontology (CL) is a Directed Acyclic Graph (DAG) with ~3,200 cell type terms connected by `is_a` relationships. Our 203 cell types sit at varying depths in this DAG. To create a strict 4-level tree suitable for hierarchical loss training, we:
 
@@ -39,9 +27,23 @@ The Cell Ontology (CL) is a Directed Acyclic Graph (DAG) with ~3,200 cell type t
 
 4. **Export** 7,913,892 embeddings from the hnswlib kNN annotation index with their 4-level hierarchy labels as a single Parquet file with dictionary-encoded categorical columns.
 
-## Results
+# Running
 
-Assuming you've setup your virtual env and downloaded the dataaset as above:
+## Install
+
+Install python dependencies and create a virtual env:
+
+```
+uv venv
+source .venv/bin/activate
+uv sync
+```
+
+Create a ./data/ folder and download and unpack the scimilarity [model and dataset](https://zenodo.org/records/10685499) (~30GB) into data/models/scimilarity/model_v1.1.
+
+## Ingest
+
+Convert the SCimilarity embeddings and flat labels and convert into a 4 level hierarchy.
 
 ```
 uv run python ingest.py
@@ -70,6 +72,66 @@ uv run python ingest.py
 | Endothelial     | 385,952   | 4.9%  |
 | Stem/Progenitor | 220,534   | 2.8%  |
 
+## Train
+
+```
+uv run python train.py --max-samples 100000 --epochs 20
+
+Device: mps
+Loading data from data/scimilarity_embeddings.parquet...
+  Total rows: 7,913,892
+  L0 classes (system): 8
+  L1 classes (subtype): 203
+  Stratified subsampling to 100,000 rows...
+  Subsampled: 100,000 rows
+  Train: 85,000, Val: 15,000
+FractalHeadV5: 259,795 parameters
+  scales=2, scale_dim=64, output_dim=128
+  L0 classes=8, L1 classes=203
+Epoch 1/20: 100%|██| 332/332 [19:51<00:00,  3.59s/it, loss=8.5752]
+  Epoch 1: loss=10.0869, L0=0.9500, L1=0.6840
+...
+Epoch 20/20: 100%|█| 332/332 [19:59<00:00,  3.61s/it, loss=5.6032]
+  Epoch 20: loss=5.4599, L0=0.9615, L1=0.7610
+  Early stopping at epoch 20
+
+Saved model to data/fractal_adapter.pt
+Best score: 1.7230
 ```
 
+## Evaluate
+
+```
+uv run python eval.py
+
+Loading model from data/fractal_adapter.pt...
+Loading data from data/scimilarity_embeddings.parquet...
+  Evaluating on 5,000 samples
+
+--- Original Embeddings (128d) ---
+  kNN L0 accuracy (system):  0.9404
+  kNN L1 accuracy (subtype): 0.7574
+  Silhouette (L0, cosine):   0.3054
+
+--- Fractal Embeddings ---
+  Full (128d) kNN L0 accuracy:  0.9464
+  Full (128d) kNN L1 accuracy:  0.7910
+  Full (128d) Silhouette (L0):  0.2445
+  Prefix (64d) kNN L0 accuracy: 0.9460
+  Prefix (64d) kNN L1 accuracy: 0.7912
+  Prefix (64d) Silhouette (L0): 0.5495
+
+--- Steerability ---
+  S = (L0@64d - L0@128d) + (L1@128d - L1@64d)
+  S = (0.9460 - 0.9464) + (0.7910 - 0.7912)
+  S = -0.0006
+  Non-positive steerability: prefix not yet specializing for coarse labels.
+
+============================================================
+Embedding            Dims   L0 Acc     L1 Acc     Sil (L0)
+------------------------------------------------------------
+Original             128    0.9404     0.7574     0.3054
+Fractal (full)       128    0.9464     0.7910     0.2445
+Fractal (prefix)     64     0.9460     0.7912     0.5495
+============================================================
 ```
