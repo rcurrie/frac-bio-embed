@@ -77,6 +77,11 @@ uv run python ingest.py
 ```
 uv run python train.py --max-samples 100000 --epochs 20
 
+```
+
+**Output:**
+
+```
 Device: mps
 Loading data from data/scimilarity_embeddings.parquet...
   Total rows: 7,913,892
@@ -103,7 +108,11 @@ Best score: 1.7230
 
 ```
 uv run python eval.py
+```
 
+**Output:**
+
+```
 Loading model from data/fractal_adapter.pt...
 Loading data from data/scimilarity_embeddings.parquet...
   Evaluating on 5,000 samples
