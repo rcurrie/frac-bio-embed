@@ -12,6 +12,7 @@ classification with prefix supervision and block dropout.
 
 import argparse
 import io
+import os
 import random
 import sys
 from pathlib import Path
@@ -486,8 +487,8 @@ def main():
     parser.add_argument("--patience", type=int, default=5)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", type=str, default="auto")
-    parser.add_argument("--s3-base", type=str, default=None,
-                        help="S3 base path (e.g. s3://bucket/path). Reads input parquet and writes model there.")
+    parser.add_argument("--s3-base", type=str, default=os.environ.get("S3_BASE"),
+                        help="S3 base path (e.g. s3://bucket/path). Falls back to S3_BASE env var.")
     args = parser.parse_args()
     train(args)
 
