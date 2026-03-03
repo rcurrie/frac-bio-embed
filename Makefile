@@ -18,9 +18,9 @@ run-local-s3-job:
 	kubectl delete job/frac-bio-embed-train
 
 run-cloud-s3-job:
-	kubectl config use-context braingeneers
+	kubectl config use-context nautilus
 	-kubectl delete job/frac-bio-embed-train 2>/dev/null
-	envsubst < job.yaml | kubectl apply -f -
+	envsubst < job-nrp.yaml | kubectl apply -f -
 	kubectl wait --for=condition=ready --timeout=60s pod -l job-name=frac-bio-embed-train
 	kubectl logs -f job/frac-bio-embed-train
 	kubectl delete job/frac-bio-embed-train
