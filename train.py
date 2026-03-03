@@ -11,11 +11,13 @@ classification with prefix supervision and block dropout.
 """
 
 import argparse
+import io
 import random
 import sys
 from pathlib import Path
 
 import numpy as np
+import pyarrow as pa
 import pyarrow.parquet as pq
 import torch
 import torch.nn.functional as F
@@ -94,16 +96,45 @@ class CellEmbeddingDataset(Dataset):
         }
 
 
-def load_data(max_samples, val_ratio, seed):
-    """Load embeddings and labels from parquet, optionally subsample."""
-    print(f"Loading data from {INPUT_PATH}...")
-    table = pq.read_table(str(INPUT_PATH))
-    n_total = len(table)
-    print(f"  Total rows: {n_total:,}")
+def load_data(input_path, max_samples, val_ratio, seed):
+    """Load embeddings and labels from parquet, optionally subsample.
 
-    # Extract columns
-    l1_system = table.column("level1_system").to_pylist()
-    l4_subtype = table.column("level4_subtype").to_pylist()
+    Uses two-phase reading: labels first (small), then embeddings only for
+    the row groups we need. This avoids downloading the full 3.8 GB file
+    from S3 when only a small subset is requested.
+    """
+    print(f"Loading data from {input_path}...")
+    if input_path.startswith("s3://"):
+        import s3fs
+        fs = s3fs.S3FileSystem()
+        pf = pq.ParquetFile(input_path, filesystem=fs)
+    else:
+        pf = pq.ParquetFile(input_path)
+
+    n_total = pf.metadata.num_rows
+    n_row_groups = pf.metadata.num_row_groups
+    print(f"  Total rows: {n_total:,} ({n_row_groups} row groups)")
+
+    # Determine how many row groups to read
+    if max_samples and max_samples < n_total:
+        rg_indices = []
+        rows_available = 0
+        for i in range(n_row_groups):
+            rg_indices.append(i)
+            rows_available += pf.metadata.row_group(i).num_rows
+            if rows_available >= max_samples:
+                break
+        print(f"  Reading {len(rg_indices)} of {n_row_groups} row groups ({rows_available:,} rows)")
+    else:
+        rg_indices = list(range(n_row_groups))
+        rows_available = n_total
+
+    # Phase 1: Read only label columns (lightweight, ~2 MB per row group)
+    label_tables = [pf.read_row_group(i, columns=["level1_system", "level4_subtype"]) for i in rg_indices]
+    label_table = pa.concat_tables(label_tables)
+
+    l1_system = label_table.column("level1_system").to_pylist()
+    l4_subtype = label_table.column("level4_subtype").to_pylist()
 
     # Build label mappings
     l0_names = sorted(set(l1_system))
@@ -116,12 +147,8 @@ def load_data(max_samples, val_ratio, seed):
     l0_labels = np.array([l0_to_idx[s] for s in l1_system], dtype=np.int64)
     l1_labels = np.array([l1_to_idx[s] for s in l4_subtype], dtype=np.int64)
 
-    # Extract embeddings
-    emb_column = table.column("embedding")
-    embeddings = np.stack([np.array(emb_column[i].as_py(), dtype=np.float32) for i in range(n_total)])
-
     # Stratified subsample by L1 label if needed
-    if max_samples and max_samples < n_total:
+    if max_samples and max_samples < rows_available:
         print(f"  Stratified subsampling to {max_samples:,} rows...")
         rng = np.random.RandomState(seed)
         indices = []
@@ -132,18 +159,27 @@ def load_data(max_samples, val_ratio, seed):
             n_take = min(samples_per_class, len(class_indices))
             chosen = rng.choice(class_indices, n_take, replace=False)
             indices.extend(chosen)
-        # If we need more to reach max_samples, sample remainder
         if len(indices) < max_samples:
-            remaining = list(set(range(n_total)) - set(indices))
+            remaining = list(set(range(rows_available)) - set(indices))
             extra = rng.choice(remaining, max_samples - len(indices), replace=False)
             indices.extend(extra)
         indices = np.array(indices[:max_samples])
         rng.shuffle(indices)
-
-        embeddings = embeddings[indices]
         l0_labels = l0_labels[indices]
         l1_labels = l1_labels[indices]
+    else:
+        indices = None
+
+    # Phase 2: Read embedding column only from selected row groups
+    emb_tables = [pf.read_row_group(i, columns=["embedding"]) for i in rg_indices]
+    emb_table = pa.concat_tables(emb_tables)
+    emb_column = emb_table.column("embedding")
+
+    if indices is not None:
+        embeddings = np.stack([np.array(emb_column[i].as_py(), dtype=np.float32) for i in indices])
         print(f"  Subsampled: {len(embeddings):,} rows")
+    else:
+        embeddings = np.stack([np.array(emb_column[i].as_py(), dtype=np.float32) for i in range(rows_available)])
 
     # Train/val split (stratified by L1)
     rng = np.random.RandomState(seed)
@@ -273,8 +309,17 @@ def train(args):
         device = args.device
     print(f"Device: {device}")
 
+    # Resolve input/output paths
+    if args.s3_base:
+        s3_base = args.s3_base.rstrip("/")
+        input_path = f"{s3_base}/scimilarity_embeddings.parquet"
+        output_model_path = f"{s3_base}/fractal_adapter.pt"
+    else:
+        input_path = str(INPUT_PATH)
+        output_model_path = str(OUTPUT_MODEL_PATH)
+
     # Load data
-    train_ds, val_ds, l0_names, l1_names = load_data(args.max_samples, args.val_ratio, args.seed)
+    train_ds, val_ds, l0_names, l1_names = load_data(input_path, args.max_samples, args.val_ratio, args.seed)
     num_l0 = len(l0_names)
     num_l1 = len(l1_names)
 
@@ -413,9 +458,21 @@ def train(args):
         "l0_names": l0_names,
         "l1_names": l1_names,
     }
-    OUTPUT_MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(save_dict, OUTPUT_MODEL_PATH)
-    print(f"\nSaved model to {OUTPUT_MODEL_PATH}")
+    if output_model_path.startswith("s3://"):
+        import boto3
+        from botocore.config import Config
+        buf = io.BytesIO()
+        torch.save(save_dict, buf)
+        buf.seek(0)
+        # Parse s3://bucket/key
+        parts = output_model_path[5:].split("/", 1)
+        bucket, key = parts[0], parts[1]
+        s3 = boto3.client("s3", config=Config(request_checksum_calculation="when_required"))
+        s3.put_object(Bucket=bucket, Key=key, Body=buf.getvalue())
+    else:
+        Path(output_model_path).parent.mkdir(parents=True, exist_ok=True)
+        torch.save(save_dict, output_model_path)
+    print(f"\nSaved model to {output_model_path}")
     print(f"Best score: {best_score:.4f}")
 
 
@@ -429,6 +486,8 @@ def main():
     parser.add_argument("--patience", type=int, default=5)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--device", type=str, default="auto")
+    parser.add_argument("--s3-base", type=str, default=None,
+                        help="S3 base path (e.g. s3://bucket/path). Reads input parquet and writes model there.")
     args = parser.parse_args()
     train(args)
 
