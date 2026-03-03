@@ -368,7 +368,8 @@ def train(args):
         epoch_loss = 0.0
         num_batches = 0
 
-        pbar = tqdm(dataloader, desc=f"Epoch {epoch + 1}/{args.epochs}")
+        pbar = tqdm(dataloader, desc=f"Epoch {epoch + 1}/{args.epochs}",
+                    disable=not sys.stderr.isatty())
         for batch in pbar:
             anchor = batch["anchor"].to(device)
             l0_pos = batch["l0_pos"].to(device)
