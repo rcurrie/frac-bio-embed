@@ -10,7 +10,6 @@ spec:
       containers:
         - name: train
           image: gitlab-registry.nrp-nautilus.io/rcurrie/frac-bio-embed
-          imagePullPolicy: Never
           env:
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
@@ -31,9 +30,11 @@ spec:
               value: "s3://braingeneers/personal/rcurrie/frac-bio-embed"
           resources:
             requests:
-              memory: 4Gi
-              cpu: 2
+              memory: 8Gi
+              cpu: 8
+              ephemeral-storage: 32Gi
             limits:
-              memory: 4Gi
-              cpu: 2
+              memory: 8Gi
+              cpu: 8
+              ephemeral-storage: 32Gi
           args: ["--max-samples", "1000", "--epochs", "2"]
