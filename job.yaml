@@ -36,4 +36,4 @@ spec:
             limits:
               memory: 4Gi
               cpu: 2
-          args: ["--max-samples", "1000", "--epochs", "5"]
+          args: ["--max-samples", "1000", "--epochs", "2"]

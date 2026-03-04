@@ -1,29 +1,42 @@
+# --- Stage 1: Builder ---
+FROM python:3.12-slim AS builder
+
+WORKDIR /app
+
+# Install build tools needed for hnswlib
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Use uv to install dependencies into a specific path
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+COPY pyproject.toml uv.lock ./
+
+# Install into /app/.venv to make it easy to copy
+# --no-editable ensures we don't have symlinks that break across stages
+RUN uv sync --frozen --no-dev --no-install-project --no-editable
+
+# --- Stage 2: Final Runtime ---
 FROM python:3.12-slim
 
 WORKDIR /app
 
-# Build tools for hnswlib C++ extension
-RUN apt-get update && apt-get install -y --no-install-recommends g++ && rm -rf /var/lib/apt/lists/*
+# Only copy the installed packages from the builder
+# This leaves behind g++, the uv cache, and apt metadata
+COPY --from=builder /app/.venv /app/.venv
 
-# Install uv for fast dependency management
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Ensure the virtualenv is on the PATH
+ENV PATH="/app/.venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+ENV S3_BASE=""
 
-# Copy dependency files first for layer caching
-COPY pyproject.toml uv.lock ./
-
-# Install dependencies (no venv needed in container)
-RUN uv sync --frozen --no-dev --no-install-project
-
-# Copy application code
+# Copy application code and the specific fractal source files
 COPY train.py ./
-
-# Copy fractal-embeddings submodule (only the src we need)
+# Copy fractal-embeddings files directly into the working directory
 COPY fractal-embeddings/moonshot-fractal-embeddings/src/fractal_v5.py \
      fractal-embeddings/moonshot-fractal-embeddings/src/multi_model_pipeline.py \
-     fractal-embeddings/moonshot-fractal-embeddings/src/
+     ./
 
-# S3_BASE can be set via env var or overridden on command line
-ENV S3_BASE=""
-ENV PYTHONUNBUFFERED=1
-
-ENTRYPOINT ["uv", "run", "python", "train.py"]
+# Entrypoint doesn't need 'uv run' anymore since we are using the venv's python
+ENTRYPOINT ["python", "train.py"]
