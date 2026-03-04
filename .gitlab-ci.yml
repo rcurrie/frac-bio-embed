@@ -10,6 +10,9 @@ build-and-push-job:
   stage: build-and-push
   variables:
     GODEBUG: "http2client=0"
+    # Increase memory for the build pod
+    KUBERNETES_MEMORY_REQUEST: "16Gi"
+    KUBERNETES_MEMORY_LIMIT: "32Gi"
   script:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --cache=true --push-retry=10 --snapshot-mode=redo --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA --destination $CI_REGISTRY_IMAGE:latest
+    - /kaniko/executor --cache=true --push-retry=10 --snapshot-mode=redo --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile --destination $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA --destination $CI_REGISTRY_IMAGE:latest --cleanup --compressed-caching=false
