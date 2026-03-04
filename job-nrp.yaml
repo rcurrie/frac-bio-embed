@@ -9,7 +9,7 @@ spec:
       restartPolicy: Never
       containers:
         - name: train
-          image: gitlab-registry.nrp-nautilus.io/rcurrie/frac-bio-embed:latest
+          image: gitlab-registry.nrp-nautilus.io/rcurrie/frac-bio-embed
           env:
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
