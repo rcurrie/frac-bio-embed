@@ -19,6 +19,4 @@ build-and-push-job:
       --destination "${CI_REGISTRY_IMAGE}:latest"
       --cache=false
       --compressed-caching=false
-      --use-new-run
-      --push-retry=20
-      --cleanup
+      --push-retry=15
