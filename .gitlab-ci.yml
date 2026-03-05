@@ -1,6 +1,7 @@
-image:
-  name: gcr.io/kaniko-project/executor:debug
-  entrypoint: [""]
+image: ghcr.io/osscontainertools/kaniko:debug
+
+stages:
+  - build-and-push
 
 build-and-push-job:
   stage: build-and-push
