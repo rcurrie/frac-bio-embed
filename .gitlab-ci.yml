@@ -1,17 +1,23 @@
-image: ghcr.io/osscontainertools/kaniko:debug
-
-stages:
-  - build-and-push
+image:
+  name: gcr.io/kaniko-project/executor:debug
+  entrypoint: [""]
 
 build-and-push-job:
   stage: build-and-push
   variables:
     GODEBUG: "http2client=0"
+    KUBERNETES_EPHEMERAL_STORAGE_REQUEST: "32Gi" 
+    KUBERNETES_CPU_REQUEST: "4"
     KUBERNETES_MEMORY_REQUEST: "16Gi"
-    KUBERNETES_MEMORY_LIMIT: "32Gi"
-    # Add this to give the "cleanup" sidecar more breathing room
-    KUBERNETES_HELPER_MEMORY_REQUEST: "4Gi"
-    KUBERNETES_HELPER_MEMORY_LIMIT: "8Gi"
   script:
+    - mkdir -p /kaniko/.docker
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --cache=true --push-retry=10 --context $CI_PROJECT_DIR --dockerfile $CI_PROJECT_DIR/Dockerfile.cpu --destination $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA --destination $CI_REGISTRY_IMAGE:latest --cleanup --compressed-caching=false
+    - /kaniko/executor 
+      --context "${CI_PROJECT_DIR}" 
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile.cpu" 
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}" 
+      --destination "${CI_REGISTRY_IMAGE}:latest"
+      --cache=true
+      --compressed-caching=false
+      --use-new-run
+      --cleanup
