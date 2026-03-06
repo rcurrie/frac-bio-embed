@@ -1,12 +1,18 @@
 docker-build:
-	docker build --platform linux/amd64 -f Dockerfile -t frac-bio-embed .
+	docker build \
+		-t gitlab-registry.nrp-nautilus.io/rcurrie/frac-bio-embed \
+		--platform linux/amd64 \
+		-f Dockerfile .
+
+docker-push:
+	docker push gitlab-registry.nrp-nautilus.io/rcurrie/frac-bio-embed
 
 train-local-docker:
 	docker run --rm \
 	-v ~/.aws:/root/.aws:ro \
 	-e S3_BASE=s3://braingeneers/personal/$$USER/frac-bio-embed \
 	-e AWS_ENDPOINT_URL=http://host.docker.internal:30000 \
-	frac-bio-embed \
+	gitlab-registry.nrp-nautilus.io/rcurrie/frac-bio-embed \
 	--max-samples 1000 --epochs 2
 
 run-local-s3-job:
