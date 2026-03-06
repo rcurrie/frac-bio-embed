@@ -228,33 +228,41 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "boto3" },
-    { name = "hnswlib" },
-    { name = "networkx" },
     { name = "numpy" },
-    { name = "obonet" },
-    { name = "pandas" },
     { name = "pyarrow" },
     { name = "s3fs" },
-    { name = "scikit-learn" },
-    { name = "tiledb" },
     { name = "torch" },
     { name = "tqdm" },
+]
+
+[package.dev-dependencies]
+ingest = [
+    { name = "hnswlib" },
+    { name = "networkx" },
+    { name = "obonet" },
+    { name = "pandas" },
+    { name = "scikit-learn" },
+    { name = "tiledb" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "boto3", specifier = ">=1.35.0" },
-    { name = "hnswlib", specifier = ">=0.8.0" },
-    { name = "networkx", specifier = ">=3.2" },
     { name = "numpy", specifier = ">=1.26.0" },
-    { name = "obonet", specifier = ">=1.1.0" },
-    { name = "pandas", specifier = ">=2.2.0" },
     { name = "pyarrow", specifier = ">=15.0.0" },
     { name = "s3fs", specifier = ">=2026.2.0" },
-    { name = "scikit-learn", specifier = ">=1.2.0" },
-    { name = "tiledb", specifier = ">=0.31.0" },
     { name = "torch", specifier = ">=2.0.0" },
     { name = "tqdm", specifier = ">=4.66.0" },
+]
+
+[package.metadata.requires-dev]
+ingest = [
+    { name = "hnswlib", specifier = ">=0.8.0" },
+    { name = "networkx", specifier = ">=3.2" },
+    { name = "obonet", specifier = ">=1.1.0" },
+    { name = "pandas", specifier = ">=2.2.0" },
+    { name = "scikit-learn", specifier = ">=1.2.0" },
+    { name = "tiledb", specifier = ">=0.31.0" },
 ]
 
 [[package]]

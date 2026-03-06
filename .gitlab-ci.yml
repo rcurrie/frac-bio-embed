@@ -1,22 +1,24 @@
-image: ghcr.io/osscontainertools/kaniko:debug
-stages:
-  - build-and-push
 build-and-push-job:
   stage: build-and-push
+  image:
+    name: moby/buildkit:rootless
+    entrypoint: [""] # Override to allow running scripts
   variables:
-    GIT_SUBMODULE_STRATEGY: recursive
-    GODEBUG: "http2client=0"
-    KUBERNETES_CPU_REQUEST: "4"
-    KUBERNETES_MEMORY_REQUEST: "16Gi"
+    GODEBUG: "http2client=0" # Keep if it helps with HTTP/2 issues on NRP registry
     KUBERNETES_EPHEMERAL_STORAGE_REQUEST: "64Gi"
+    BUILDKITD_FLAGS: --oci-worker-no-process-sandbox # Critical for rootless in CI
+  before_script:
+    - mkdir -p ~/.docker
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > ~/.docker/config.json
   script:
-    - mkdir -p /kaniko/.docker
-    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"username\":\"$CI_REGISTRY_USER\",\"password\":\"$CI_REGISTRY_PASSWORD\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor
-      --context "${CI_PROJECT_DIR}"
-      --dockerfile "${CI_PROJECT_DIR}/Dockerfile.cpu"
-      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
-      --destination "${CI_REGISTRY_IMAGE}:latest"
-      --cache=false
-      --compressed-caching=false
-      --push-retry=15
+    - |
+      buildctl-daemonless.sh build \
+        --frontend dockerfile.v0 \
+        --local context="${CI_PROJECT_DIR}" \
+        --local dockerfile="${CI_PROJECT_DIR}" \
+        --opt filename=Dockerfile \
+        --output type=image,name="${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}",push=true \
+        --output type=image,name="${CI_REGISTRY_IMAGE}:latest",push=true \
+        --import-cache type=registry,ref="${CI_REGISTRY_IMAGE}:buildcache" \
+        --export-cache type=registry,ref="${CI_REGISTRY_IMAGE}:buildcache" \
+        --progress=plain  # Easier to debug large builds

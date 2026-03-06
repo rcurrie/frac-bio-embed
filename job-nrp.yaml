@@ -8,7 +8,7 @@ spec:
       containers:
         - name: train
           image: gitlab-registry.nrp-nautilus.io/rcurrie/frac-bio-embed
-          command: ["python", "hello.py"]
+          command: ["python", "train.py"]
           resources:
             requests:
               memory: 1Gi
@@ -16,4 +16,5 @@ spec:
             limits:
               memory: 1Gi
               cpu: 1
+          args: ["-h"]
       restartPolicy: Never

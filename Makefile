@@ -1,5 +1,5 @@
 docker-build:
-	docker build -t frac-bio-embed .
+	docker build --platform linux/amd64 -f Dockerfile -t frac-bio-embed .
 
 train-local-docker:
 	docker run --rm \
