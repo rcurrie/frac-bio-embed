@@ -3,18 +3,38 @@ kind: Job
 metadata:
   name: frac-bio-embed-train
 spec:
+  backoffLimit: 0
   template:
     spec:
+      restartPolicy: Never
       containers:
         - name: train
           image: gitlab-registry.nrp-nautilus.io/rcurrie/frac-bio-embed
-          command: ["python", "train.py"]
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: s3-west-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: s3-west-credentials
+                  key: secret-access-key
+            - name: AWS_ENDPOINT_URL
+              valueFrom:
+                secretKeyRef:
+                  name: s3-west-credentials
+                  key: endpoint
+            - name: S3_BASE
+              value: "s3://braingeneers/personal/rcurrie/frac-bio-embed"
           resources:
             requests:
-              memory: 1Gi
+              memory: 8Gi
               cpu: 1
+              # ephemeral-storage: 32Gi
             limits:
-              memory: 1Gi
+              memory: 8Gi
               cpu: 1
-          args: ["-h"]
-      restartPolicy: Never
+              # ephemeral-storage: 32Gi
+          args: ["--max-samples", "1000", "--epochs", "2"]

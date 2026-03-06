@@ -14,6 +14,9 @@ dependencies = [
 ]
 
 [dependency-groups]
+dev = [
+    "ipython>=9.11.0",
+]
 ingest = [
     "tiledb>=0.31.0",
     "obonet>=1.1.0",

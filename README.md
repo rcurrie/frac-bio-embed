@@ -34,6 +34,7 @@ The Cell Ontology (CL) is a Directed Acyclic Graph (DAG) with ~3,200 cell type t
 Install python dependencies and create a virtual env:
 
 ```
+git submodule update --init --recursive
 uv venv
 source .venv/bin/activate
 uv sync
