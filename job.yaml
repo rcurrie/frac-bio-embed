@@ -30,9 +30,13 @@ spec:
               value: "s3://braingeneers/personal/rcurrie/frac-bio-embed"
           resources:
             requests:
-              memory: 4Gi
-              cpu: 2
+              memory: 16Gi
+              cpu: 8
+              nvidia.com/gpu: 1
+              # ephemeral-storage: 32Gi
             limits:
-              memory: 4Gi
-              cpu: 2
+              memory: 16Gi
+              cpu: 8
+              nvidia.com/gpu: 1
+              # ephemeral-storage: 32Gi
           args: ["--max-samples", "1000", "--epochs", "2"]

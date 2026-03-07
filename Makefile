@@ -27,6 +27,6 @@ run-cloud-s3-job:
 	kubectl config use-context nautilus
 	-kubectl delete job/frac-bio-embed-train 2>/dev/null
 	envsubst < job.yaml | kubectl apply -f -
-	kubectl wait --for=condition=ready --timeout=60s pod -l job-name=frac-bio-embed-train
+	kubectl wait --for=condition=ready --timeout=-1s pod -l job-name=frac-bio-embed-train
 	kubectl logs -f job/frac-bio-embed-train
 	kubectl delete job/frac-bio-embed-train
