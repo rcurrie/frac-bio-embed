@@ -1,0 +1,36 @@
+Loading model from data/fractal_adapter_2L.pt...
+  2 levels, 2 scales x 64d = 128d output
+Loading data from data/stratified.parquet...
+  Evaluating on 5,000 samples
+
+--- Original Embeddings (stratified.parquet, 128d) ---
+  kNN L0 accuracy (system): 0.9378
+  kNN L1 accuracy (lineage): 0.9164
+  Silhouette (L0, cosine):   0.3113
+
+--- Fractal Embeddings (2 scales x 64d) ---
+  Full (128d):
+    kNN L0 accuracy (system): 0.9426
+    kNN L1 accuracy (lineage): 0.9266
+    Silhouette (L0, cosine):   0.5378
+  Prefix j=1 (64d):
+    kNN L0 accuracy (system): 0.9440
+    kNN L1 accuracy (lineage): 0.9258
+  Prefix j=2 (128d):
+    kNN L0 accuracy (system): 0.9420
+    kNN L1 accuracy (lineage): 0.9262
+
+--- Steerability ---
+  S = (L0@prefix1 - L0@full) + (Leaf@full - Leaf@prefix1)
+  S = (0.9440 - 0.9426) + (0.9266 - 0.9258)
+  S = 0.0022
+  Positive steerability: fractal structure is working!
+
+======================================================================
+Embedding              Dims   L0 Acc  L1 Acc  Sil(L0) 
+----------------------------------------------------------------------
+Original               128    0.9378    0.9164    0.3113  
+Fractal (full)         128    0.9426    0.9266    0.5378  
+Fractal (prefix 1)     64     0.9440    0.9258  
+Fractal (prefix 2)     128    0.9420    0.9262  
+======================================================================

@@ -1,3 +1,16 @@
+train-all:
+	python train.py --num-levels 2 --scale-dim 64 --max-samples 100000 --epochs 50
+	python train.py --num-levels 3 --scale-dim 32 --max-samples 100000 --epochs 50
+	python train.py --num-levels 4 --scale-dim 32 --max-samples 100000 --epochs 50
+
+eval-all:
+	python eval.py --model-path data/fractal_adapter_2L.pt \
+		> results/fractal_adapter_2L.txt
+	python eval.py --model-path data/fractal_adapter_3L.pt \
+		> results/fractal_adapter_3L.txt
+	python eval.py --model-path data/fractal_adapter_4L.pt \
+		> results/fractal_adapter_4L.txt
+
 train-local:
 	uv run python train.py --max-samples 100000 --epochs 20
 

@@ -22,9 +22,6 @@ from fractal_v5 import FractalHeadV5
 INPUT_PATH = Path("data/scimilarity_embeddings.parquet")
 OUTPUT_PATH = Path("data/fractal_embeddings.parquet")
 MODEL_PATH = Path("data/fractal_adapter.pt")
-EMBEDDING_DIM = 128
-
-
 def embed(args):
     # Device
     if args.device == "auto":
@@ -52,7 +49,8 @@ def embed(args):
     ).to(device)
     model.load_state_dict(checkpoint["model_state_dict"])
     model.eval()
-    print(f"  Loaded: {config['num_scales']} scales x {config['scale_dim']}d = {config['num_scales'] * config['scale_dim']}d output")
+    output_dim = config["num_scales"] * config["scale_dim"]
+    print(f"  Loaded: {config['num_scales']} scales x {config['scale_dim']}d = {output_dim}d output")
 
     # Read input parquet metadata
     pf = pq.ParquetFile(str(args.input))
@@ -97,7 +95,7 @@ def embed(args):
         # Build output table
         flat = fractal_embs.ravel().astype(np.float32)
         embedding_col = pa.FixedSizeListArray.from_arrays(
-            pa.array(flat, type=pa.float32()), list_size=EMBEDDING_DIM
+            pa.array(flat, type=pa.float32()), list_size=output_dim
         )
 
         out_table = pa.table({
